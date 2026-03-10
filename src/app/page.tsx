@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type Task = {
+  id: string; // 新增：数据库主键
   text: string;
   completed: boolean;
 };
@@ -12,55 +13,104 @@ export default function Home() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [inputText, setInputText] = useState("");
 
-  // 从 localStorage 加载
+  // 🔴 改造：从 API 加载数据（替换原来的 localStorage）
   useEffect(() => {
-    const saved = localStorage.getItem("todoList");
-    if (saved) {
-      setTasks(JSON.parse(saved));
-    } else {
-      const initialTasks: Task[] = [
-        { text: "完成项目报告", completed: false },
-        { text: "买牛奶", completed: false },
-        { text: "给妈妈打电话", completed: false },
-      ];
-      setTasks(initialTasks);
-      localStorage.setItem("todoList", JSON.stringify(initialTasks));
-    }
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch("/api/todos");
+        if (!res.ok) throw new Error("加载失败");
+        const data = await res.json();
+        setTasks(data);
+      } catch (error) {
+        console.error("加载任务失败:", error);
+        // 降级处理：如果加载失败，使用初始数据
+        const initialTasks: Task[] = [
+          { id: "1", text: "完成项目报告", completed: false },
+          { id: "2", text: "买牛奶", completed: false },
+          { id: "3", text: "给妈妈打电话", completed: false },
+        ];
+        setTasks(initialTasks);
+      }
+    };
+
+    fetchTasks();
   }, []);
 
-  // 保存到 localStorage
-  const saveTasks = (newTasks: Task[]) => {
-    localStorage.setItem("todoList", JSON.stringify(newTasks));
-    setTasks(newTasks);
+  // 🔴 改造：保存到 API（替换原来的 saveTasks 函数）
+  const saveTasks = async (newTasks: Task[]) => {
+    setTasks(newTasks); // 立即更新 UI
+    // 这里不需要再操作 localStorage，因为 API 会直接操作数据库
   };
 
-  // 添加任务
-  const addTask = () => {
+  // 🔴 改造：添加任务（调用 API）
+  const addTask = async () => {
     const t = inputText.trim();
     if (!t) return;
-    const newTasks = [{ text: t, completed: false }, ...tasks];
-    saveTasks(newTasks);
-    setInputText("");
+
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: t }),
+      });
+
+      if (!res.ok) throw new Error("添加失败");
+      const newTask = await res.json();
+      
+      // 把新任务加到列表开头
+      saveTasks([newTask, ...tasks]);
+      setInputText("");
+    } catch (error) {
+      console.error("添加任务失败:", error);
+      alert("添加失败，请稍后重试");
+    }
   };
 
-  // 切换完成状态
-  const toggleComplete = (idx: number) => {
-    const newTasks = [...tasks];
-    newTasks[idx].completed = !newTasks[idx].completed;
-    saveTasks(newTasks);
+  // 🔴 改造：切换状态（调用 API）
+  const toggleComplete = async (id: string) => {
+    try {
+      const res = await fetch("/api/todos", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) throw new Error("更新失败");
+      const updatedTask = await res.json();
+
+      // 更新本地列表
+      const newTasks = tasks.map(task => 
+        task.id === id ? updatedTask : task
+      );
+      saveTasks(newTasks);
+    } catch (error) {
+      console.error("更新任务失败:", error);
+    }
   };
 
-  // 删除任务
-  const deleteTask = (idx: number) => {
-    const newTasks = tasks.filter((_, i) => i !== idx);
-    saveTasks(newTasks);
+  // 🔴 改造：删除任务（调用 API）
+  const deleteTask = async (id: string) => {
+    try {
+      await fetch("/api/todos", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      // 过滤掉删除的任务
+      const newTasks = tasks.filter(task => task.id !== id);
+      saveTasks(newTasks);
+    } catch (error) {
+      console.error("删除任务失败:", error);
+    }
   };
 
-  // 过滤搜索
+  // 过滤搜索（这部分逻辑完全不变）
   const filtered = tasks.filter((task) =>
     task.text.toLowerCase().includes(searchKeyword.toLowerCase())
   );
 
+  // 🎨 JSX 部分：你的原始代码完全保留！
   return (
     <div className="min-h-screen bg-[#f5f7fa] p-5 font-sans">
       <div className="max-w-[500px] mx-auto bg-white rounded-xl shadow overflow-hidden">
@@ -120,7 +170,7 @@ export default function Home() {
           ) : (
             filtered.map((task, i) => (
               <div
-                key={i}
+                key={task.id} /* 改用数据库 id */
                 className="flex items-center justify-between p-4 rounded-lg bg-gray-50 mb-3 hover:bg-gray-100"
               >
                 <div
@@ -134,13 +184,13 @@ export default function Home() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => toggleComplete(i)}
+                    onClick={() => toggleComplete(task.id)}
                     className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
                   >
                     {task.completed ? "重做" : "完成"}
                   </button>
                   <button
-                    onClick={() => deleteTask(i)}
+                    onClick={() => deleteTask(task.id)}
                     className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
                   >
                     删除
