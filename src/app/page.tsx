@@ -1,65 +1,156 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+
+type Task = {
+  text: string;
+  completed: boolean;
+};
 
 export default function Home() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [inputText, setInputText] = useState("");
+
+  // 从 localStorage 加载
+  useEffect(() => {
+    const saved = localStorage.getItem("todoList");
+    if (saved) {
+      setTasks(JSON.parse(saved));
+    } else {
+      const initialTasks: Task[] = [
+        { text: "完成项目报告", completed: false },
+        { text: "买牛奶", completed: false },
+        { text: "给妈妈打电话", completed: false },
+      ];
+      setTasks(initialTasks);
+      localStorage.setItem("todoList", JSON.stringify(initialTasks));
+    }
+  }, []);
+
+  // 保存到 localStorage
+  const saveTasks = (newTasks: Task[]) => {
+    localStorage.setItem("todoList", JSON.stringify(newTasks));
+    setTasks(newTasks);
+  };
+
+  // 添加任务
+  const addTask = () => {
+    const t = inputText.trim();
+    if (!t) return;
+    const newTasks = [{ text: t, completed: false }, ...tasks];
+    saveTasks(newTasks);
+    setInputText("");
+  };
+
+  // 切换完成状态
+  const toggleComplete = (idx: number) => {
+    const newTasks = [...tasks];
+    newTasks[idx].completed = !newTasks[idx].completed;
+    saveTasks(newTasks);
+  };
+
+  // 删除任务
+  const deleteTask = (idx: number) => {
+    const newTasks = tasks.filter((_, i) => i !== idx);
+    saveTasks(newTasks);
+  };
+
+  // 过滤搜索
+  const filtered = tasks.filter((task) =>
+    task.text.toLowerCase().includes(searchKeyword.toLowerCase())
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-[#f5f7fa] p-5 font-sans">
+      <div className="max-w-[500px] mx-auto bg-white rounded-xl shadow overflow-hidden">
+        {/* 头部 */}
+        <div className="bg-[#4A90E2] text-white p-6 text-center">
+          <h1 className="text-xl font-semibold">我的待办清单</h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {/* 搜索 */}
+        <div className="p-4 pb-0">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="搜索任务..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              className="w-full p-2 pl-10 border rounded-lg outline-none focus:border-[#4A90E2]"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              🔍
+            </span>
+          </div>
         </div>
-      </main>
+
+        {/* 输入 */}
+        <div className="p-6 border-b">
+          <div className="flex gap-3">
+            <input
+              type="text"
+              className="flex-1 p-3 border rounded-lg outline-none focus:border-[#4A90E2]"
+              placeholder="输入新任务..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addTask()}
+            />
+            <button
+              onClick={addTask}
+              className="bg-[#FF6B8B] text-white px-5 py-3 rounded-lg hover:bg-[#FF476A]"
+            >
+              添加
+            </button>
+          </div>
+        </div>
+
+        {/* 列表 */}
+        <div className="p-6 pt-0">
+          <h2 className="text-lg font-semibold my-6 text-gray-600">任务列表</h2>
+
+          {filtered.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>
+                {searchKeyword
+                  ? `没有找到匹配“${searchKeyword}”的任务`
+                  : "还没有任务，开始添加吧！"}
+              </p >
+            </div>
+          ) : (
+            filtered.map((task, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-4 rounded-lg bg-gray-50 mb-3 hover:bg-gray-100"
+              >
+                <div
+                  className={
+                    task.completed
+                      ? "line-through text-gray-500 flex-1"
+                      : "flex-1"
+                  }
+                >
+                  {task.text}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleComplete(i)}
+                    className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
+                  >
+                    {task.completed ? "重做" : "完成"}
+                  </button>
+                  <button
+                    onClick={() => deleteTask(i)}
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
