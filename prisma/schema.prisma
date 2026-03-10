@@ -1,14 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  // 注意：这里只写 provider，url 要移到 .env 文件中配置
-  url      = env("DATABASE_URL") // 加回这行，忽略编辑器警告
 }
 
 model Todo {
